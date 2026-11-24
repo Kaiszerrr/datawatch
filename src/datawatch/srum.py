@@ -69,7 +69,7 @@ def parse(path) -> dict:
     return {"days": days, "made": time.time()}
 
 
-def top_apps(days: dict, since_day: str, limit=25) -> list:
+def top_apps(days: dict, since_day: str, limit=60) -> list:
     """Sum per app from `since_day` on. Returns [{'app', 'down', 'up'}] sorted by total."""
     agg = {}
     for d, apps in days.items():
