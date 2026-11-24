@@ -9,5 +9,11 @@ $py = if (Test-Path ".venv\Scripts\python.exe") { ".venv\Scripts\python.exe" } e
     --collect-submodules dissect `
     run.py
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
-$hash = (Get-FileHash dist\datawatch.exe -Algorithm SHA256).Hash
-"dist\datawatch.exe  SHA-256 $hash"
+# Console build of the AI-assistant connector (MCP talks over stdin/stdout, which the windowed exe does not have).
+& $py -m PyInstaller --noconfirm --onefile --console --name datawatch-mcp `
+    --paths src --collect-submodules dissect run_mcp.py
+if ($LASTEXITCODE -ne 0) { throw "PyInstaller (mcp) failed" }
+foreach ($f in "datawatch", "datawatch-mcp") {
+    $hash = (Get-FileHash "dist\$f.exe" -Algorithm SHA256).Hash
+    "dist\$f.exe  SHA-256 $hash"
+}

@@ -16,7 +16,36 @@ sections that don't apply are marked and explained. Proof was collected 24 Nov 2
 | 4/7. Local binding | Server binds `127.0.0.1` only (nothing on the network can reach it). | `serve()` in `server.py`; `test_listens_only_on_loopback`. |
 | 8. Database | N/A: no database. Data is JSON files in `%APPDATA%\datawatch`. | - |
 | 9. Privacy | Collects only byte counts per adapter / per app / per day. Nothing is sent anywhere. Per-app history is read from a temporary copy of the Windows database that is deleted right after parsing; only totals are kept. Delete-my-data = delete the folder. Export = the JSON files. No logs of typed text. | `srum.refresh` (`finally: copy.unlink`), README "Settings and data". |
-| 10. Prove it | Attack tests run against the running server. | `tests/test_server.py` (10 tests) + `tests/test_core.py` (38 tests): 48 passed, run 3 times in a row. Built `datawatch.exe` smoke-tested: `/`, `/app.js`, `/style.css`, `/api/state` all 200. |
+| 10. Prove it | Attack tests run against the running server. | `tests/test_server.py` (10 tests) + `tests/test_core.py` (38 tests): 62 passed in total (server, core, icons and MCP tests). Built `datawatch.exe` smoke-tested: `/`, `/app.js`, `/style.css`, `/api/state` all 200. |
+
+## AI assistant connector (MCP)
+
+| Concern | Control | Proof |
+|---|---|---|
+| Who can connect | Nobody remote: it is a stdio program the person's own AI client launches on their own PC. No port, no token, no account. | `test_stdio_end_to_end` |
+| What it can read | Totals only (usage, per-app MB, limits). No paths, user names or PC details. App names have control characters stripped and are length-capped (they are data, not instructions). | `test_usage_summary`, `test_app_usage_without_data_and_with_data` |
+| What it can change | Nothing by default. `set_limits` exists only with `--allow-write`, validates like the UI, ignores unknown fields. | `test_set_limits_is_blocked_without_flag`, `test_set_limits_with_flag_validates` |
+| Bad input | Malformed JSON-RPC, unknown tools and methods return protocol errors, never stack traces. | `test_bad_requests` |
+
+## App icons
+
+Icons are extracted from `.exe` paths Windows itself reported, using Windows' icon API, with the paths passed to
+PowerShell through a JSON file. The web page only ever sees an id (SHA-1 of the app name) and requests
+`/icon/<40 hex>.png`; anything else is a 404 and no file path reaches the page (`test_icon_route_serves_only_valid_ids`,
+`test_read_icon_only_by_valid_id`). File paths are not saved in the per-app cache.
+
+## Personal and PC details before publishing
+
+`scripts/privacy_scan.py` reads this PC's details live (Windows user name, profile path, computer name, local IP and MAC
+addresses, git name and e-mail) and fails if any of them, or any e-mail, IP address, `C:\Users\<name>` path, Windows SID,
+MAC address, host name or secret format appears in a tracked file, a file name, any commit message or diff in the git
+history, or the commit author identities. The public GitHub login is allowed (public by design). A pre-push hook runs it,
+so a push is refused until it is clean, and CI runs it again. Private words (for example a real name) can be added one per
+line in the git-ignored `.privacy-terms`.
+
+- Result 24 Nov 2026: 8 private markers checked, 0 problems (files and full history).
+- Built `datawatch.exe` checked: the user name appears nowhere in the exe, including inside its compressed Python modules
+  (PyInstaller stores relative paths such as `datawatch\app.py`). Release exes are built by GitHub Actions, not uploaded by hand.
 
 ## Other things worth knowing
 

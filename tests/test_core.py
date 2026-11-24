@@ -121,7 +121,9 @@ def test_app_label(raw, want):
 
 def test_top_apps_and_ranges():
     days = {"2026-11-24": {"a.exe": [100, 50], "b.exe": [10, 0]}, "2026-11-10": {"a.exe": [1000, 0]}}
-    assert srum.top_apps(days, "2026-11-20") == [{"app": "a.exe", "down": 100, "up": 50}, {"app": "b.exe", "down": 10, "up": 0}]
+    rows = srum.top_apps(days, "2026-11-20")
+    assert [(r["app"], r["down"], r["up"]) for r in rows] == [("a.exe", 100, 50), ("b.exe", 10, 0)]
+    assert all(len(r["id"]) == 40 for r in rows)
     assert srum.top_apps(days, "0000")[0]["app"] == "a.exe"
 
 
@@ -135,3 +137,41 @@ def test_srum_ts_decoding():
     bits = struct.unpack("<q", struct.pack("<d", 46000.5))[0]
     assert srum._ts(bits).year == 2025 or srum._ts(bits).year >= 2025
     assert srum._ts(None) is None
+
+
+# ---------------- icons
+BS = chr(92)
+FAKE_PNG = b"PNGFAKE"
+
+
+def test_icon_ids_and_paths():
+    from datawatch import icons
+    i = icons.app_id("chrome.exe")
+    assert icons.is_valid_id(i) and i == icons.app_id("chrome.exe") and i != icons.app_id("brave.exe")
+    for bad in ("", "../x", "A" * 40, "g" * 40, i + "0", i[:-1], None):
+        assert not icons.is_valid_id(bad)
+
+
+def test_nt_path_mapping():
+    from datawatch import icons
+    dev = {BS + "device" + BS + "harddiskvolume6": "C:"}
+    nt = BS.join(["", "device", "harddiskvolume6", "program files", "x", "a.exe"])
+    assert icons.to_win_path(nt, dev) == BS.join(["C:", "program files", "x", "a.exe"])
+    assert icons.to_win_path(BS.join(["", "Device", "HarddiskVolume6", "a.exe"]), dev) == "C:" + BS + "a.exe"
+    assert icons.to_win_path(BS.join(["", "device", "harddiskvolume9", "a.exe"]), dev) is None
+    assert icons.to_win_path("DoSvc", dev) is None
+
+
+def test_read_icon_only_by_valid_id(tmp_path):
+    from datawatch import icons
+    i = icons.app_id("x.exe")
+    (icons.icon_dir(tmp_path) / f"{i}.png").write_bytes(FAKE_PNG)
+    assert icons.read_icon(tmp_path, i) == FAKE_PNG
+    assert icons.read_icon(tmp_path, "../../settings") is None
+    assert icons.read_icon(tmp_path, icons.app_id("missing.exe")) is None
+
+
+def test_extract_skips_non_exe_and_missing(tmp_path):
+    from datawatch import icons
+    missing = BS.join(["C:", "definitely", "missing", "x.exe"])
+    assert icons.extract({"svc": "dosvc", "x": missing}, tmp_path) == 0

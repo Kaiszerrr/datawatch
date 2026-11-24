@@ -21,6 +21,17 @@ function h(tag, props, ...kids) {
   kids.forEach(k => e.append(k));
   return e;
 }
+const HUES = [212, 262, 330, 24, 152, 190, 44, 290];
+function appIcon(r, have) {
+  const box = h("span", { class: "appicon" });
+  const letter = () => { box.replaceChildren(); box.classList.add("letter"); box.dataset.h = String(HUES[(r.app.charCodeAt(0) + r.app.length) % HUES.length]); box.textContent = (r.app.replace(/[^a-z0-9]/gi, "")[0] || "?").toUpperCase(); };
+  if (r.app.startsWith("(system")) { box.classList.add("sys"); box.append(icon("i-cog")); return box; }
+  if (have.has(r.id)) {
+    const img = h("img", { src: "/icon/" + r.id + ".png", alt: "", width: "24", height: "24", loading: "lazy" });
+    img.addEventListener("error", letter); box.append(img);
+  } else letter();
+  return box;
+}
 function icon(id) { const s = el("svg", { class: "i" }); el("use", { href: "#" + id }, s); return s; }
 function showTipAt(x, y, txt) { tip.textContent = txt; tip.style.opacity = 1; tip.style.left = Math.max(8, Math.min(x, innerWidth - tip.offsetWidth - 8)) + "px"; tip.style.top = y + "px"; }
 function hideTip() { tip.style.opacity = 0; }
@@ -168,6 +179,7 @@ function renderApps(d) {
     return;
   }
   empty.hidden = true;
+  const haveIcons = new Set(a.icons || []);
   const total = rows.reduce((s, r) => s + r.down + r.up, 0) || 1, mx = Math.max(...rows.map(r => r.down + r.up)) || 1;
   const th = h("thead"), tr = h("tr"); ["App", "", "Share", "Down", "Total", ""].forEach(c => tr.append(h("th", {}, c))); th.append(tr); t.append(th);
   const tb = h("tbody");
@@ -175,7 +187,7 @@ function renderApps(d) {
     const row = h("tr"), bar = h("div", { class: "usebar" }); bar.style.width = Math.max((r.down + r.up) / mx * 100, 1) + "%";
     const lim = h("button", { type: "button", class: "btn sm", "aria-label": "Set a daily limit for " + r.app }, "Set limit");
     lim.addEventListener("click", () => { selectTab("limits"); $("n-app").value = r.app; $("n-mb").focus(); });
-    row.append(h("td", {}, h("div", { class: "appname" }, r.app)), h("td", { class: "barcell" }, bar), h("td", {}, Math.round((r.down + r.up) / total * 100) + "%"),
+    row.append(h("td", {}, h("div", { class: "appname" }, appIcon(r, haveIcons), h("span", {}, r.app))), h("td", { class: "barcell" }, bar), h("td", {}, Math.round((r.down + r.up) / total * 100) + "%"),
       h("td", {}, fmt(r.down)), h("td", { class: "num" }, fmt(r.down + r.up)), h("td", {}, lim));
     tb.append(row);
   });

@@ -10,3 +10,5 @@ usage.json
 srum_cache.json
 srudb_copy.dat
 *.spec
+.privacy-terms
+.privacy-allow

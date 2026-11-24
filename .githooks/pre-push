@@ -1,0 +1,4 @@
+#!/bin/sh
+# Blocks a push if any personal or PC detail is found in the files or the git history.
+PY=".venv/Scripts/python.exe"; [ -x "$PY" ] || PY="python"
+"$PY" scripts/privacy_scan.py || { echo "push blocked by the privacy scan"; exit 1; }

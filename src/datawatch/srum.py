@@ -13,6 +13,8 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from . import icons
+
 SRUM_SOURCE = r"C:\Windows\System32\sru\SRUDB.dat"
 NET_TABLE = "{973F5D5C-1D90-4944-BE8E-24B94231A174}"
 UNKNOWN = "(system / unknown)"
@@ -56,17 +58,20 @@ def parse(path) -> dict:
                 names[r.get("IdIndex")] = "" if kind == 3 else blob.decode("utf-16-le", "ignore")
             else:
                 names[r.get("IdIndex")] = str(blob or "")
-        days = {}
+        days, paths = {}, {}
         for r in db.table(NET_TABLE).records():
             t = _ts(r.get("TimeStamp"))
             if t is None:
                 continue
             local = t.replace(tzinfo=None) + (datetime.now() - datetime.utcnow())      # SRUM stores UTC
-            app = app_label(names.get(r.get("AppId")))
+            raw = names.get(r.get("AppId"))
+            app = app_label(raw)
+            if raw and "\\" in raw and app not in paths and raw.strip().rstrip("\x00").lower().endswith(".exe"):
+                paths[app] = raw.strip().rstrip("\x00")
             cell = days.setdefault(local.strftime("%Y-%m-%d"), {}).setdefault(app, [0, 0])
             cell[0] += int(r.get("BytesRecvd") or 0)
             cell[1] += int(r.get("BytesSent") or 0)
-    return {"days": days, "made": time.time()}
+    return {"days": days, "made": time.time(), "paths": paths}
 
 
 def top_apps(days: dict, since_day: str, limit=60) -> list:
@@ -78,7 +83,7 @@ def top_apps(days: dict, since_day: str, limit=60) -> list:
                 a = agg.setdefault(app, [0, 0])
                 a[0] += down
                 a[1] += up
-    rows = [{"app": k, "down": v[0], "up": v[1]} for k, v in agg.items()]
+    rows = [{"app": k, "id": icons.app_id(k), "down": v[0], "up": v[1]} for k, v in agg.items()]
     rows.sort(key=lambda r: -(r["down"] + r["up"]))
     return rows[:limit]
 
@@ -125,6 +130,11 @@ def refresh(home: Path) -> dict:
         raise RuntimeError("Could not read the usage history file.") from e
     finally:
         copy.unlink(missing_ok=True)                       # the copy holds data about every app: don't leave it lying around
+    try:                                                   # app icons are a nice-to-have: never fail the refresh over them
+        icons.extract(result.pop("paths", {}), home)
+    except Exception:
+        pass
+    result.pop("paths", None)                              # file paths are not kept in the cache
     tmp = Path(home) / "srum_cache.tmp"
     tmp.write_text(json.dumps(result), encoding="utf-8")
     os.replace(tmp, Path(home) / "srum_cache.json")

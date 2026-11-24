@@ -25,6 +25,8 @@ jobs:
           pip install -e ".[dev]"
       - name: Test
         run: pytest -q
+      - name: Privacy scan (files and history)
+        run: python scripts/privacy_scan.py
       - name: Dependency audit
         run: |
           pip install pip-audit
@@ -33,19 +35,23 @@ jobs:
         run: ./build.ps1
       - name: Checksum
         run: |
-          $h = (Get-FileHash dist\datawatch.exe -Algorithm SHA256).Hash
-          "$h  datawatch.exe" | Out-File -Encoding ascii dist\datawatch.exe.sha256
+          foreach ($f in "datawatch", "datawatch-mcp") {
+            $h = (Get-FileHash "dist\$f.exe" -Algorithm SHA256).Hash
+            "$h  $f.exe" | Out-File -Encoding ascii -Append dist\checksums.sha256
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: datawatch-windows
           path: |
             dist/datawatch.exe
-            dist/datawatch.exe.sha256
+            dist/datawatch-mcp.exe
+            dist/checksums.sha256
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/datawatch.exe
-            dist/datawatch.exe.sha256
+            dist/datawatch-mcp.exe
+            dist/checksums.sha256
           generate_release_notes: true

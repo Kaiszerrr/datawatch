@@ -2,7 +2,7 @@
 import threading
 import time
 
-from . import autostart, config, limits, notify, sampler, srum
+from . import autostart, config, icons, limits, notify, sampler, srum
 from .store import UsageStore
 
 
@@ -21,6 +21,22 @@ class App:
         self._srum_last = 0.0
         self.srum_error = ""
         self.stop = threading.Event()
+        self._settings_mtime = self._mtime()
+
+    def _mtime(self):
+        try:
+            return (self.home / "settings.json").stat().st_mtime
+        except OSError:
+            return 0.0
+
+    def reload_settings_if_changed(self) -> bool:
+        """Pick up edits made outside the UI (for example by a connected AI assistant)."""
+        m = self._mtime()
+        if m != self._settings_mtime:
+            self._settings_mtime = m
+            self.settings = config.load()
+            return True
+        return False
 
     # ---- sampling
     def tick(self, now=None) -> None:
@@ -74,6 +90,7 @@ class App:
                 if now - last_save >= 10:
                     self.persist(now)
                     last_save = now
+                self.reload_settings_if_changed()
                 if now - last_check >= 60:
                     self.check_limits(now)
                     last_check = now
@@ -86,6 +103,7 @@ class App:
         clean = config.validate(new)
         config.save(clean)
         self.settings = clean
+        self._settings_mtime = self._mtime()
         return clean
 
     # ---- per-app data (SRUM)
@@ -128,6 +146,7 @@ class App:
                 "busy": self._srum_busy, "error": self.srum_error, "admin": srum.is_admin(),
                 "today": srum.top_apps(days, today), "week": srum.top_apps(days, week),
                 "month": srum.top_apps(days, month), "all": srum.top_apps(days, "0000-00-00"),
+                "icons": icons.available(self.home),
             },
             "settings": s, "autostart": autostart.is_enabled(),
         }

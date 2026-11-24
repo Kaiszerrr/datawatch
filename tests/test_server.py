@@ -119,3 +119,14 @@ def test_listens_only_on_loopback(srv):
         assert c.connect_ex(("127.0.0.1", port)) == 0
     finally:
         c.close()
+
+
+def test_icon_route_serves_only_valid_ids(srv):
+    from datawatch import icons
+    port, host, tok, app, home = srv
+    i = icons.app_id("demo.exe")
+    (icons.icon_dir(home) / f"{i}.png").write_bytes(b"PNGFAKE")
+    st, h, body = req(port, "GET", f"/icon/{i}.png", host)
+    assert st == 200 and h["Content-Type"] == "image/png" and body == b"PNGFAKE"
+    for bad in ("/icon/../settings.png", "/icon/..%2Fsettings.png", "/icon/zzz.png", f"/icon/{i}.txt"):
+        assert req(port, "GET", bad, host)[0] == 404

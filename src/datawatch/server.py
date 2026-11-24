@@ -12,7 +12,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import autostart
+from . import autostart, icons
 from .app import App
 
 if getattr(sys, "frozen", False):
@@ -72,6 +72,11 @@ def make_handler(app: App, port: int, token: str, on_quit):
                     return self._send(200, cache[name], ctype)
                 except OSError:
                     return self._json(404, {"error": "not found"})
+            if path.startswith("/icon/") and path.endswith(".png"):
+                data = icons.read_icon(app.home, path[6:-4])         # only 40-hex ids reach the disk
+                if data is None:
+                    return self._json(404, {"error": "not found"})
+                return self._send(200, data, "image/png")
             if path == "/api/state":
                 try:
                     st = app.state()
