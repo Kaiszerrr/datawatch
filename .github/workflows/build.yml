@@ -1,0 +1,51 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    permissions:
+      contents: write          # only used to attach the .exe to a release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Test
+        run: pytest -q
+      - name: Dependency audit
+        run: |
+          pip install pip-audit
+          pip-audit --skip-editable
+      - name: Build exe
+        run: ./build.ps1
+      - name: Checksum
+        run: |
+          $h = (Get-FileHash dist\datawatch.exe -Algorithm SHA256).Hash
+          "$h  datawatch.exe" | Out-File -Encoding ascii dist\datawatch.exe.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: datawatch-windows
+          path: |
+            dist/datawatch.exe
+            dist/datawatch.exe.sha256
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/datawatch.exe
+            dist/datawatch.exe.sha256
+          generate_release_notes: true

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>datawatch</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>datawatch</h1>
+      <div class="sub">Data usage on this PC &middot; download + upload &middot; all apps</div>
+    </div>
+    <div class="pill" id="pill" role="status"><span id="pillicon" aria-hidden="true"></span><span id="pilltxt">Loading&hellip;</span></div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" id="tab-overview" aria-selected="true" aria-controls="view-overview">Overview</button>
+    <button role="tab" id="tab-apps" aria-selected="false" aria-controls="view-apps">Apps</button>
+    <button role="tab" id="tab-limits" aria-selected="false" aria-controls="view-limits">Limits</button>
+  </nav>
+
+  <div class="banner" id="banner" role="alert"></div>
+
+  <section id="view-overview" role="tabpanel" aria-labelledby="tab-overview" class="stack">
+    <div class="grid hero">
+      <div class="card">
+        <h2>Today</h2>
+        <div class="ringwrap">
+          <svg id="ring" viewBox="0 0 220 220" role="img" aria-label="Data used today"></svg>
+          <div class="ringtxt"><div class="big mono" id="used">0</div><div class="lbl" id="of"></div></div>
+        </div>
+        <div class="lbl leftl" id="left"></div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h2>Speed now <span class="sub" id="adapter"></span></h2>
+          <div class="speed">
+            <div><div class="lbl"><span class="dot cd"></span>Download</div><div class="big mono sm" id="sdown">0</div></div>
+            <div><div class="lbl"><span class="dot cu"></span>Upload</div><div class="big mono sm" id="sup">0</div></div>
+          </div>
+          <svg id="spark" viewBox="0 0 600 70" preserveAspectRatio="none" role="img" aria-label="Speed over the last 3 minutes"></svg>
+        </div>
+        <div class="grid tiles">
+          <div class="card tile"><div class="k">Downloaded today</div><div class="v" id="tdown">0</div></div>
+          <div class="card tile"><div class="k">Uploaded today</div><div class="v" id="tup">0</div></div>
+          <div class="card tile"><div class="k">This month</div><div class="v" id="tmonth">0</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Today by hour</h2>
+      <div class="legend"><span><span class="dot cd"></span>Download</span><span><span class="dot cu"></span>Upload</span></div>
+      <svg id="hours" viewBox="0 0 960 190" role="img" aria-label="Data used each hour today"></svg>
+    </div>
+    <div class="card">
+      <h2>Last 14 days</h2>
+      <div class="legend"><span><span class="dot cd"></span>Download</span><span><span class="dot cu"></span>Upload</span><span id="limitkey"></span></div>
+      <svg id="days" viewBox="0 0 960 230" role="img" aria-label="Data used per day, last 14 days"></svg>
+      <details><summary>Show as table</summary><table id="tbl"></table></details>
+    </div>
+  </section>
+
+  <section id="view-apps" role="tabpanel" aria-labelledby="tab-apps" class="stack" hidden>
+    <div class="card">
+      <h2>Which apps use the data</h2>
+      <p class="lbl" id="appsnote"></p>
+      <div class="row">
+        <div class="seg" role="group" aria-label="Time range">
+          <button id="r-today" aria-pressed="true">Today</button>
+          <button id="r-week" aria-pressed="false">7 days</button>
+          <button id="r-month" aria-pressed="false">This month</button>
+          <button id="r-all" aria-pressed="false">All recorded</button>
+        </div>
+        <button class="btn" id="refresh">Load / refresh per-app data</button>
+      </div>
+      <div class="lbl" id="appsmsg" role="status"></div>
+      <table id="apptbl" class="apptbl"></table>
+    </div>
+  </section>
+
+  <section id="view-limits" role="tabpanel" aria-labelledby="tab-limits" class="stack" hidden>
+    <form class="card" id="limitform" autocomplete="off">
+      <h2>Limits and alerts</h2>
+      <p class="lbl">You get a Windows notification when a limit is reached. datawatch never blocks anything.</p>
+      <label class="field">Daily limit, whole PC (GB, 0 = off)<input type="number" id="f-daily" min="0" max="100000" step="0.1"></label>
+      <label class="field">Monthly limit, whole PC (GB, 0 = off)<input type="number" id="f-monthly" min="0" max="1000000" step="1"></label>
+      <label class="field">Also warn at (% of the limit, comma separated)<input type="text" id="f-warn" maxlength="40" placeholder="50, 80"></label>
+      <h2 class="gap">Per-app daily limits</h2>
+      <p class="lbl">Needs per-app data (Apps tab). Windows updates that data about once an hour, so these alerts can lag.</p>
+      <div id="applimits"></div>
+      <div class="row">
+        <input type="text" id="n-app" maxlength="100" placeholder="app name, e.g. chrome.exe" aria-label="App name">
+        <input type="number" id="n-mb" min="1" max="10000000" placeholder="MB per day" aria-label="Megabytes per day">
+        <button type="button" class="btn" id="addapp">Add</button>
+      </div>
+      <div class="row gap"><button type="submit" class="btn primary">Save</button><span class="lbl" id="savemsg" role="status"></span></div>
+    </form>
+    <div class="card">
+      <h2>App</h2>
+      <label class="check"><input type="checkbox" id="f-auto"> Start datawatch with Windows</label>
+      <div class="row gap"><button type="button" class="btn" id="quit">Quit datawatch</button></div>
+      <p class="lbl">Your numbers are stored only on this PC, in <code>%APPDATA%\datawatch</code>.</p>
+    </div>
+  </section>
+</main>
+<div id="tip"></div>
+<script src="/app.js"></script>
+</body>
+</html>
